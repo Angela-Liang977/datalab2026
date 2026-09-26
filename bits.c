@@ -19,7 +19,7 @@
  * Difficulty: 1
  */
 int bitAnd(int x, int y) {
-    return 2;
+    return ~(~x | ~y);
 }
 
 /*
@@ -30,7 +30,7 @@ int bitAnd(int x, int y) {
  *   Difficulty: 1
  */
 int bitXor(int x, int y) {
-    return 2;
+    return ~(~x & ~y) & ~(x & y);
 }
 
 /*
@@ -50,7 +50,11 @@ int bitXor(int x, int y) {
  *   1 if x and y have the same sign , 0 otherwise.
  */
 int samesign(int x, int y) {
-    return 2;
+    int sx = x >> 31;
+    int sy = y >> 31;
+    if (sx ^ sy) return 0;
+    if (sx) return 1;
+    return !((!x) ^ (!y));
 }
 
 /*
@@ -63,7 +67,14 @@ int samesign(int x, int y) {
  *   Difficulty: 4
  */
 int logtwo(int v) {
-    return 2;
+    int r = 0;
+    int b;
+    b = (v >> 16) > 0; b = b << 4; r = r | b; v = v >> b;
+    b = (v >> 8) > 0;  b = b << 3; r = r | b; v = v >> b;
+    b = (v >> 4) > 0;  b = b << 2; r = r | b; v = v >> b;
+    b = (v >> 2) > 0;  b = b << 1; r = r | b; v = v >> b;
+    b = (v >> 1) > 0;  r = r | b;
+    return r;
 }
 
 /*
@@ -76,7 +87,12 @@ int logtwo(int v) {
  *    Difficulty: 2
  */
 int byteSwap(int x, int n, int m) {
-    return 2;
+    int nb = n << 3;
+    int mb = m << 3;
+    int nx = (x >> nb) & 0xFF;
+    int mx = (x >> mb) & 0xFF;
+    int mask = (0xFF << nb) | (0xFF << mb);
+    return (x & ~mask) | (nx << mb) | (mx << nb);
 }
 
 /*
@@ -88,7 +104,13 @@ int byteSwap(int x, int n, int m) {
  *   Difficulty: 3
  */
 unsigned reverse(unsigned v) {
-    return 2;
+    unsigned r = 0;
+    int i;
+    for (i = 32; i; i--) {
+        r = (r << 1) | (v & 1);
+        v = v >> 1;
+    }
+    return r;
 }
 
 /*
@@ -100,7 +122,9 @@ unsigned reverse(unsigned v) {
  *   Difficulty: 3
  */
 int logicalShift(int x, int n) {
-    return 2;
+    int s = x >> n;
+    int mask = ~(((1 << 31) >> n) << 1);
+    return s & mask;
 }
 
 /*
@@ -112,7 +136,16 @@ int logicalShift(int x, int n) {
  *   Difficulty: 4
  */
 int leftBitCount(int x) {
-    return 2;
+    int y = ~x;
+    int z = y;
+    int r = 0;
+    int t;
+    t = !(y >> 16) << 4; r = r + t; y = y << t;
+    t = !(y >> 24) << 3; r = r + t; y = y << t;
+    t = !(y >> 28) << 2; r = r + t; y = y << t;
+    t = !(y >> 30) << 1; r = r + t; y = y << t;
+    t = !(y >> 31);      r = r + t;
+    return r + !z;
 }
 
 /*
@@ -124,7 +157,41 @@ int leftBitCount(int x) {
  *   Difficulty: 4
  */
 unsigned float_i2f(int x) {
-    return 2;
+    unsigned u = x;
+    unsigned sign = u & 0x80000000;
+    unsigned a;
+    unsigned b;
+    unsigned t;
+    unsigned frac;
+    unsigned exp;
+    int e;
+
+    if (x == 0) return 0;
+
+    if (sign)
+        a = 0 - u;
+    else
+        a = u;
+
+    b = a;
+    e = 31;
+    while (!(b >> 31)) {
+        b = b << 1;
+        e = e - 1;
+    }
+
+    t = a << (31 - e);
+    frac = (t >> 8) & 0x7FFFFF;
+    if ((t >> 7) & 1) {
+        if ((t & 0x7F) | (frac & 1)) frac = frac + 1;
+    }
+    if (frac >> 23) {
+        frac = frac & 0x7FFFFF;
+        e = e + 1;
+    }
+
+    exp = e + 127;
+    return sign | (exp << 23) | frac;
 }
 
 /*
@@ -139,7 +206,11 @@ unsigned float_i2f(int x) {
  *   Difficulty: 4
  */
 unsigned floatScale2(unsigned uf) {
-    return 2;
+    unsigned sign = uf & 0x80000000;
+    unsigned exp = uf & 0x7F800000;
+    if (exp == 0x7F800000) return uf;
+    if (exp == 0) return sign | (uf << 1);
+    return uf + 0x00800000;
 }
 
 /*
@@ -156,7 +227,21 @@ unsigned floatScale2(unsigned uf) {
  *   Difficulty: 3
  */
 int float64_f2i(unsigned uf1, unsigned uf2) {
-    return 2;
+    unsigned sign = uf2 >> 31;
+    unsigned exp = (uf2 >> 20) & 0x7FF;
+    unsigned val = 0x80000000u | ((uf2 & 0xFFFFF) << 11) | (uf1 >> 21);
+
+    if (exp < 1023) return 0;
+    if (exp > 1054) return 0x80000000u;
+    val = val >> (1054 - exp);
+
+    if (sign) {
+        if (val > 0x80000000u) return 0x80000000u;
+        return -val;
+    } else {
+        if (val > 0x7FFFFFFF) return 0x80000000u;
+        return val;
+    }
 }
 
 /*
@@ -173,5 +258,8 @@ int float64_f2i(unsigned uf1, unsigned uf2) {
  *   Difficulty: 4
  */
 unsigned floatPower2(int x) {
-    return 2;
+    if (x > 127) return 0x7F800000;
+    if (x < -149) return 0;
+    if (x > -127) return (x + 127) << 23;
+    return 1 << (x + 149);
 }
